@@ -2,6 +2,7 @@ import random
 from math import ceil, sqrt
 from typing import Tuple, Any, List, Set
 from dataclasses import dataclass
+import time
 
 
 @dataclass
@@ -137,26 +138,31 @@ class Solver:
         """
         local_graph = graph.copy()
 
-        def recursive_cut(subgraph: Graph) -> int:
+        stack = [(local_graph, local_graph.num_nodes)]
+        min_cut = float('inf')
+
+        while stack:
             # 1.
-            n = len(subgraph.nodes)
+            subgraph, n = stack.pop()
 
             # 2.
             if n <= 6:
                 # Brute force: Run contract multiple times and take the best result
-                return Solver.contract(subgraph)
+                min_cut = min(min_cut, Solver.contract(subgraph))
+                continue
 
             # a
-            t = ceil(1 + n / sqrt(2))
+            t: int = ceil(1 + n / sqrt(2))
 
             # b
             H1 = Solver.contract_until(subgraph, t)
             H2 = Solver.contract_until(subgraph, t)
 
             # c & d
-            return min(recursive_cut(H1), recursive_cut(H2))
+            stack.append((H1, t))
+            stack.append((H2, t))
 
-        return recursive_cut(local_graph)
+        return min_cut
 
     @staticmethod
     def generate_random_graph_2(num_vertices, edge_probability=0.5) -> Graph:
@@ -176,19 +182,25 @@ class Solver:
 if __name__ == "__main__":
     random.seed(523920)
 
+    prob: float = 0.4
     # Generate a random graph
-    GRAPH = Solver.generate_random_graph_2(100, 0.4)
+    GRAPH = Solver.generate_random_graph_2(50, 0.4)
 
-    print(f"STARTING : {GRAPH}")
+    print(f"STARTING {prob}: {GRAPH}")
 
     #GRAPH.contract_random()
     #print("AFTER : " + str(GRAPH))
 
+    start_time = time.time()
+
     # Run Karger's algorithm
     karger_cut = Solver.contract(GRAPH)
     print(f"Karger's Algorithm Cut: {karger_cut}")
+    second_time = time.time() - start_time
+    print("Time taken:", second_time, "seconds")
 
     # Run FastCut algorithm
-    print("ok ?")
     fast_cut_result = Solver.fast_cut(GRAPH)
     print("FastCut Algorithm Cut:", fast_cut_result)
+    third_time = time.time()-start_time
+    print("Time taken:", third_time, "seconds")
