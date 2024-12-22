@@ -113,13 +113,19 @@ class Solver:
         Returns:
             int: the cut of the two vertices left
         """
-        local_graph = graph.copy()
-        while len(local_graph.nodes) > 2:
-            # Merge v into u
-            local_graph.contract_random()
-
         # the final cut
-        return local_graph.num_edges
+        return Solver.contract_until(graph, 2).num_edges
+
+    @staticmethod
+    def contract_until(graph_to_contract: Graph, target_vertices: int) -> Graph:
+        """Perfom contractions on a copy of graph_to_contract until the graph has target_vertices left."""
+
+        result = graph_to_contract.copy()
+        while result.num_nodes > target_vertices:
+            result.contract_random()
+
+        return result
+
 
     @staticmethod
     def fast_cut(graph: Graph) -> int:
@@ -144,20 +150,11 @@ class Solver:
             t = ceil(1 + n / sqrt(2))
 
             # b
-            H1 = contract_until(subgraph, t)
-            H2 = contract_until(subgraph, t)
+            H1 = Solver.contract_until(subgraph, t)
+            H2 = Solver.contract_until(subgraph, t)
 
             # c & d
             return min(recursive_cut(H1), recursive_cut(H2))
-
-        def contract_until(graph_to_contract: Graph, target_vertices: int) -> Graph:
-            """Perfom contractions on a copy of graph_to_contract until the graph has target_vertices left."""
-
-            result = graph_to_contract.copy()
-            while result.num_nodes > target_vertices:
-                result.contract_random()
-
-            return result
 
         return recursive_cut(local_graph)
 
@@ -180,7 +177,7 @@ if __name__ == "__main__":
     random.seed(523920)
 
     # Generate a random graph
-    GRAPH = Solver.generate_random_graph_2(10, 0.7)
+    GRAPH = Solver.generate_random_graph_2(100, 0.4)
 
     print(f"STARTING : {GRAPH}")
 
@@ -192,5 +189,6 @@ if __name__ == "__main__":
     print(f"Karger's Algorithm Cut: {karger_cut}")
 
     # Run FastCut algorithm
+    print("ok ?")
     fast_cut_result = Solver.fast_cut(GRAPH)
     print("FastCut Algorithm Cut:", fast_cut_result)
