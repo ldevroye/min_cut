@@ -100,8 +100,11 @@ class Graph:
 
     def contract_random(self):
         u, v = self.get_random_edge()
-        #print(u, v)
+        #print("a: " + str(u) + ", b: " + str(v))
+        #print(self.__str__())
+
         self.contract(u, v)
+
 
 
 class Solver:
@@ -141,7 +144,7 @@ class Solver:
         stack = [(local_graph, local_graph.num_nodes)]
         min_cut = float('inf')
 
-        while stack:
+        while stack and min_cut > 2:
             # 1.
             subgraph, n = stack.pop()
 
@@ -158,23 +161,33 @@ class Solver:
             H1 = Solver.contract_until(subgraph, t)
             H2 = Solver.contract_until(subgraph, t)
 
-            # c & d
+            # c
             stack.append((H1, t))
             stack.append((H2, t))
 
+        # d
         return min_cut
 
     @staticmethod
-    def generate_random_graph_2(num_vertices, edge_probability=0.5) -> Graph:
+    def generate_random_graph(num_vertices, edge_probability=0.5) -> Graph:
         """Generates a random undirected graph using networkx."""
         result: Graph = Graph(dict())
         result.add_node(num_vertices)
-        num_edges = 0
+
         for i in range(0, num_vertices):
             for j in range(i + 1, num_vertices):
                 if random.random() < edge_probability:
                     result.add_edge(i, j)
-                    num_edges += 1
+
+        for i in range(0, num_vertices):
+            numbers = list(range(0, num_vertices))
+            numbers.remove(i)
+            random.shuffle(numbers)
+            j = len(result.edges[i])
+
+            while j < 2:
+                result.add_edge(i, numbers[j])
+
         return result
 
 
@@ -182,11 +195,12 @@ class Solver:
 if __name__ == "__main__":
     random.seed(523920)
 
-    prob: float = 0.4
+    prob: float = 0.1
+    num_v = 100
     # Generate a random graph
-    GRAPH = Solver.generate_random_graph_2(50, 0.4)
+    GRAPH = Solver.generate_random_graph(num_v, prob)
 
-    print(f"STARTING {prob}: {GRAPH}")
+    print(f"STARTING {prob} {num_v}: {GRAPH}")
 
     #GRAPH.contract_random()
     #print("AFTER : " + str(GRAPH))
