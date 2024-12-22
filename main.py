@@ -132,7 +132,7 @@ class Solver:
 
 
     @staticmethod
-    def fast_cut(graph: Graph) -> int:
+    def fast_cut(graph: Graph, time_out: float = float('inf')) -> int:
         """
         FastCut algorithm for minimum cut.
 
@@ -144,7 +144,8 @@ class Solver:
         stack = [(local_graph, local_graph.num_nodes)]
         min_cut = float('inf')
 
-        while stack and min_cut > 2:
+        begin = time.time()
+        while stack and min_cut > 2 and (time.time()-begin < time_out):
             # 1.
             subgraph, n = stack.pop()
 
@@ -186,7 +187,9 @@ class Solver:
             j = len(result.edges[i])
 
             while j < 2:
+
                 result.add_edge(i, numbers[j])
+                j += 1
 
         return result
 
@@ -195,8 +198,8 @@ class Solver:
 if __name__ == "__main__":
     random.seed(523920)
 
-    prob: float = 0.1
-    num_v = 100
+    prob: float = 0.05
+    num_v = 500
     # Generate a random graph
     GRAPH = Solver.generate_random_graph(num_v, prob)
 
@@ -214,7 +217,7 @@ if __name__ == "__main__":
     print("Time taken:", second_time, "seconds")
 
     # Run FastCut algorithm
-    fast_cut_result = Solver.fast_cut(GRAPH)
+    fast_cut_result = Solver.fast_cut(GRAPH, second_time**3)
     print("FastCut Algorithm Cut:", fast_cut_result)
     third_time = time.time()-start_time
     print("Time taken:", third_time, "seconds")
