@@ -2,6 +2,7 @@ import random
 from math import ceil, sqrt
 from typing import Tuple, List
 from dataclasses import dataclass
+import matplotlib.pyplot as plt
 import time
 
 """
@@ -13,7 +14,6 @@ Date : 23/12/2024
 VERSION: Python 3.12
 LICENSE: MIT
 """
-
 
 # random seed (my id)
 SEED = 523920
@@ -151,15 +151,15 @@ class Graph:
         contract a random edge
         """
         u, v = self.get_random_edge()
-        #print("a: " + str(u) + ", b: " + str(v))
-        #print(self.__str__())
+        # print("a: " + str(u) + ", b: " + str(v))
+        # print(self.__str__())
         self.contract(u, v)
 
 
 class Solver:
 
     @staticmethod
-    def contract(graph: Graph) -> int:
+    def contract(graph: Graph, time_out: float = float('inf')) -> int:
         """
         Karger's Contract algorithm for minimum cut using rustworkx.
 
@@ -167,19 +167,20 @@ class Solver:
             int: the cut (nbr of edges) of the two vertices left
         """
         # the final cut
-        return Solver.contract_until(graph, 2).cut_size
+        return Solver.contract_until(graph, 2, time_out).cut_size
 
     @staticmethod
-    def contract_until(graph_to_contract: Graph, target_vertices: int) -> Graph:
+    def contract_until(graph_to_contract: Graph, target_vertices: int, time_out: float = float('inf')) -> Graph:
         """
         Perfom contractions on a copy of graph_to_contract until the graph has target_vertices left.
+        :param time_out: time before returning the result
         :param graph_to_contract: the graph that will be copied
         :param target_vertices: nmber of vertices to have left after
         :return: the resulting graph
         """
-
-        result = graph_to_contract.copy()
-        while result.num_nodes > target_vertices:
+        start: float = time.time()
+        result: Graph = graph_to_contract.copy()
+        while result.num_nodes > target_vertices and time.time()-start < time_out:
             result.contract_random_edge()
 
         return result
@@ -197,13 +198,14 @@ class Solver:
         """
         local_graph: Graph = graph.copy()
 
-        stack: List[Tuple[Graph, int]] = [(local_graph, local_graph.num_nodes)]
+        stack: List[Graph] = [local_graph]
         min_cut = float('inf')
 
         begin: float = time.time()
         while stack and min_cut > 2 and (time.time() - begin < time_out):
             # 1.
-            subgraph, n = stack.pop()
+            subgraph = stack.pop()
+            n = subgraph.num_nodes
             # 2.
             if n <= 6:
                 # Brute force: Run contract multiple times and take the best result
@@ -214,12 +216,13 @@ class Solver:
             t: int = ceil(1 + n / sqrt(2))
 
             # b
-            H1: Graph = Solver.contract_until(subgraph, t)
-            H2: Graph = Solver.contract_until(subgraph, t)
+            remain_time: float = time_out-(time.time()-begin)
+            H1: Graph = Solver.contract_until(subgraph, t, remain_time)
+            H2: Graph = Solver.contract_until(subgraph, t, remain_time)
 
             # c
-            stack.append((H1, t))
-            stack.append((H2, t))
+            stack.append(H1)
+            stack.append(H2)
 
         # d
         return min_cut
@@ -267,7 +270,7 @@ class Solver:
 
             # check connectivity
             visited = set()
-            start_node = result.nodes[random.randint(0, num_vertices-1)]
+            start_node = result.nodes[random.randint(0, num_vertices - 1)]
             dfs(start_node, visited)
             if len(visited) == result.num_nodes:
                 break
@@ -312,51 +315,70 @@ def main_test():
             f"Size: {result['size']}, Probability: {result['probability']}, Time: {result['time']:.6f} sec, Nodes: {result['num_nodes']}, Edges: {result['num_edges']}")
 
 
-def main():
-    #test parameters
-    prob: float = 0
-    num_v: int = 100
-    number_try: int = 1000
-    time_out: float = 10.0
-
+def main(densities: list[float], num_v: list[int], num_try: int = 1, time_out: float = float('inf')) -> dict:
     # printing purpose
     progress_threshold: int = 5
-    update_interval: float = number_try * (progress_threshold / 100)  # Calculate steps per update
+    update_interval: float = num_try * (progress_threshold / 100)  # Calculate steps per update
 
     # output
-    num_edges = 0
-    start_time = time.time()
-    error = 0
-    print(f"STARTING : {prob*100}%, {num_v} nodes, {number_try} iteration")
-    for i in range(number_try):
-        GRAPH = Solver.generate_random_graph(num_v, prob)
-        try:
-            Solver.fast_cut(GRAPH)
-        except:
-            error += 1
-            print(f"ERROR: {GRAPH}")
+    output: dict[int: List[tuple[int, int]]] = dict()
+    print(f"STARTING : {densities} densitites, {num_v} nodes, {num_try} iteration")
 
-        num_edges += GRAPH.num_edges
+    for density in densities:
+        for n_v in num_v:
+            num_edges: int = 0
+            error: list[int] = [0, 0]
+            minimal_cut: list[int] = [0, 0]
+            computation_time: list[float] = [0, 0]
 
-        if i % update_interval == 0 or i == number_try:
-            progress = (i / number_try) * 100
-            print(f"Progress: {progress+5:.0f}%")
+            start_time = time.time()
 
-    elapsed = time.time() - start_time
-    print(f"Total time for {num_v} {prob*100}%: {elapsed:.4f} sec - {elapsed/number_try:.4f} sec average for {number_try} times")
-    print(f"Summary of Results: {num_edges} edges - {num_edges/number_try} average")
-    print(f"{error} errors ({error/number_try*100}%)")
+            print(n_v, density, num_try)
 
+            for i in range(num_try):
+                GRAPH = Solver.generate_random_graph(n_v, density)
+                try:
+                    start_try = time.time()
+                    minimal_cut[0] += Solver.contract(GRAPH, time_out/num_try)
+                    computation_time[0] += time.time()-start_try
+                except:
+                    error[0] += 1
+
+                try:
+                    start_try = time.time()
+                    minimal_cut[1] += Solver.fast_cut(GRAPH, time_out/num_try)
+                    computation_time[1] += time.time()-start_try
+
+                except:
+                    error[1] += 1
+
+                num_edges += GRAPH.num_edges
+
+                if i % update_interval == 0 or i == num_try and len(densities) == len(num_v) == 1:
+                    progress = (i / num_try) * 100
+                    #print(f"Progress: {progress + 5:.0f}%")
+
+            elapsed = time.time() - start_time
+            print(f"\tTotal time: {elapsed:.4f} sec - {elapsed / num_try:.4f} sec average ({computation_time[0]/num_try}, {computation_time[1]/num_try})")
+            print(f"\tSummary of Results: {num_edges} edges - {num_edges / num_try} average")
+            print(f"\t{error} errors ({error[0] / num_try * 100:0.2f}%, {error[1] / num_try * 100:0.2f}%)")
+            print(f"\t({minimal_cut[0] // num_try}, {minimal_cut[1] // num_try}) minimal cut")
+
+
+            # minimal cut, error, computation time
+            output[n_v] = [(minimal_cut[0]//num_try, minimal_cut[1]//num_try),
+                           (error[0], error[1]),
+                           (computation_time[0] / num_try, computation_time[1] / num_try)]
+    return output
 
 def basic_main():
-
     prob: float = 0.5
     num_v = 100
     # Generate a random graph
     start_time = time.time()
 
     GRAPH = Solver.generate_random_graph(num_v, prob)
-    print(f"STARTING {prob*100}%, {num_v} vertices, {GRAPH.num_edges} edges")
+    print(f"STARTING {prob * 100}%, {num_v} vertices, {GRAPH.num_edges} edges")
 
     # Run Karger's algorithm
     karger_cut = Solver.contract(GRAPH)
@@ -373,9 +395,86 @@ def basic_main():
     print(f"Time taken: {third_time:0.4f} seconds")
 
 
+def plot_algorithm(dic: dict, x_label: str, y_label: str, title_label: str):
+    """
+    Plots Contract and FastCut algorithms comparisons.
+
+    Parameters:
+    - dic: [parameter]: (result_contract, result_fast_cut)
+    - x_label: label to put in x
+    - y_label: label to put in y
+    """
+    plt.figure(figsize=(10, 6))
+
+    nodes: list = list(dic.keys())
+    contract: list = []
+    fast_cut: list = []
+    for e in dic.values():
+        contract.append(e[0])
+        fast_cut.append(e[1])
+
+    # Plot Contract algorithm runtime
+    plt.plot(nodes, contract, label="Contract Algorithm", marker='o', color='blue')
+
+    # Plot FastCut algorithm runtime
+    plt.plot(nodes, fast_cut, label="FastCut Algorithm", marker='s', color='green')
+
+    # Add labels, title, and legend
+    plt.xlabel(x_label, fontsize=12)
+    plt.ylabel(y_label, fontsize=12)
+    plt.title(title_label, fontsize=14)
+    plt.legend(fontsize=12)
+    plt.grid(True, linestyle='--', alpha=0.7)
+
+    # Show the plot
+    plt.tight_layout()
+    plt.show()
+
+
 if __name__ == "__main__":
     random.seed(SEED)
-    basic_main()
+
+    densities = [0.05]
+    num_v = [10 * (i+1) for i in range(0, 10)]
+    num_try = 100
+
+    result = main(densities, num_v, num_try, 180)
+
+    error_dic: dict[int: tuple[int, int]] = dict()
+    cut_dic: dict[int: tuple[int, int]] = dict()
+    computation_time_dic: dict[int: tuple[int, int]] = dict()
+
+    for key, value in result.items():
+        # Unpack each tuple into separate lists
+        cut_dic[key] = value[0]
+        error_dic[key] = value[1]
+        computation_time_dic[key] = value[2]
 
 
 
+    fake_result: dict[int: tuple[int, int]] = \
+        {10: (0, 0),
+         20: (0, 0),
+         30: (0, 0),
+         40: (0, 0),
+         50: (0, 0),
+         60: (0, 0),
+         70: (0, 0),
+         80: (0, 0),
+         90: (0, 0),
+         100: (0, 0)}
+
+    x = "Number of Nodes"
+    title = f"Contract vs FastCut Algorithms - {densities[0]*100:0.0f}% density"
+
+    y = "Error rate"
+    title_1 = f"{y} - " + title
+    plot_algorithm(error_dic, x, y, title_1)
+
+    y = "Minimal cut "
+    title_2 = f"{y} - " + title
+    plot_algorithm(cut_dic, x, y, title_2)
+
+    y = "Computation time (s)"
+    title_3 = f"{y} - " + title
+    plot_algorithm(computation_time_dic, x, y, title_3)
