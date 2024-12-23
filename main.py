@@ -5,6 +5,8 @@ from dataclasses import dataclass
 import time
 
 
+SEED = 523920
+
 @dataclass
 class Graph:
     edges: dict[int: List[int]]  # edges[1] = [2,3,5,8] connected nodes
@@ -100,9 +102,8 @@ class Graph:
 
     def contract_random(self):
         u, v = self.get_random_edge()
-        # print("a: " + str(u) + ", b: " + str(v))
-        # print(self.__str__())
-
+        #print("a: " + str(u) + ", b: " + str(v))
+        #print(self.__str__())
         self.contract(u, v)
 
 
@@ -172,20 +173,39 @@ class Solver:
         result: Graph = Graph(dict())
         result.add_node(num_vertices)
 
-        for i in range(0, num_vertices):
-            for j in range(i + 1, num_vertices):
-                if random.random() < edge_probability:
-                    result.add_edge(i, j)
+        def dfs(node, visited):
+            """embeded function to check connectivity of the graph"""
+            visited.add(node)
+            for neighbors in result.edges.values():
+                for neighbor in neighbors:
+                    if neighbor not in visited:
+                        dfs(neighbor, visited)
 
-        for i in range(0, num_vertices):
-            numbers = list(range(0, num_vertices))
-            numbers.remove(i)
-            random.shuffle(numbers)
-            j = len(result.edges[i])
+        while True:
+            for i in range(0, num_vertices):
+                for j in range(i + 1, num_vertices):
+                    if random.random() < edge_probability:
+                        result.add_edge(i, j)
 
-            while j < 2:
-                result.add_edge(i, numbers[j])
-                j += 1
+            for i in range(0, num_vertices):
+                numbers = list(range(0, num_vertices))
+                numbers.remove(i)
+                random.shuffle(numbers)
+
+                j = len(result.edges[i])
+                if j == 1:  # don't take the same neighbor twice
+                    numbers.remove(result.edges[i][0])
+
+                while j < 2:
+                    result.add_edge(i, numbers[j])
+                    j += 1
+
+            # check connectivity
+            visited = set()
+            start_node = result.nodes[random.randint(0, num_vertices-1)]
+            dfs(start_node, visited)
+            if len(visited) == result.num_nodes:
+                break
 
         return result
 
@@ -218,7 +238,6 @@ def size_prob_test():
 
 
 def main_test():
-    random.seed(523920)
     print("Starting graph generation tests...")
     results = size_prob_test()
 
@@ -229,12 +248,10 @@ def main_test():
 
 
 def main():
-    random.seed(523920)
-
     #test parameters
-    prob: float = 0.2
-    num_v: int = 500
-    number_try: int = 1
+    prob: float = 0
+    num_v: int = 10
+    number_try: int = 1000
     time_out: float = 10.0
 
     # printing purpose
@@ -244,11 +261,15 @@ def main():
     # output
     num_edges = 0
     start_time = time.time()
-
+    error = 0
     print(f"STARTING : {prob*100}%, {num_v} nodes, {number_try} iteration")
     for i in range(number_try):
         GRAPH = Solver.generate_random_graph(num_v, prob)
-        Solver.contract(GRAPH)
+        try:
+            Solver.fast_cut(GRAPH)
+        except:
+            error += 1
+            print(f"ERROR: {GRAPH}")
 
         num_edges += GRAPH.num_edges
 
@@ -258,10 +279,10 @@ def main():
 
     elapsed = time.time() - start_time
     print(f"Total time for {num_v} {prob*100}%: {elapsed:.4f} sec - {elapsed/number_try:.4f} sec average for {number_try} times")
-    print(f"\nSummary of Results: {num_edges} edges - {num_edges/number_try} average")
+    print(f"Summary of Results: {num_edges} edges - {num_edges/number_try} average")
+    print(f"{error} errors ({error/number_try*100}%)")
 
 def main_2():
-    random.seed(523920)
 
     prob: float = 0.1
     num_v = 50
@@ -288,6 +309,7 @@ def main_2():
 
 
 if __name__ == "__main__":
+    random.seed(SEED)
     #main_test()
     main()
 
