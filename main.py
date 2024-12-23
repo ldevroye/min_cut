@@ -100,11 +100,10 @@ class Graph:
 
     def contract_random(self):
         u, v = self.get_random_edge()
-        #print("a: " + str(u) + ", b: " + str(v))
-        #print(self.__str__())
+        # print("a: " + str(u) + ", b: " + str(v))
+        # print(self.__str__())
 
         self.contract(u, v)
-
 
 
 class Solver:
@@ -130,7 +129,6 @@ class Solver:
 
         return result
 
-
     @staticmethod
     def fast_cut(graph: Graph, time_out: float = float('inf')) -> int:
         """
@@ -145,10 +143,9 @@ class Solver:
         min_cut = float('inf')
 
         begin = time.time()
-        while stack and min_cut > 2 and (time.time()-begin < time_out):
+        while stack and min_cut > 2 and (time.time() - begin < time_out):
             # 1.
             subgraph, n = stack.pop()
-
             # 2.
             if n <= 6:
                 # Brute force: Run contract multiple times and take the best result
@@ -187,28 +184,95 @@ class Solver:
             j = len(result.edges[i])
 
             while j < 2:
-
                 result.add_edge(i, numbers[j])
                 j += 1
 
         return result
 
 
-# Example usage
-if __name__ == "__main__":
+def size_prob_test():
+    sizes = [10, 50, 100]  # Different sizes of graphs
+    probabilities = [0.1, 0.3, 0.5, 0.7, 0.9]  # Different probabilities of edges
+
+    results = []
+
+    for size in sizes:
+        for prob in probabilities:
+            print(f"{size}, {prob} :")
+            start_time = time.time()
+            graph = Solver.generate_random_graph(size, prob)
+            Solver.fast_cut(graph)
+            elapsed_time = time.time() - start_time
+
+            results.append({
+                "size": size,
+                "probability": prob,
+                "time": elapsed_time,
+                "num_nodes": graph.num_nodes,
+                "num_edges": graph.num_edges
+            })
+
+            print(f"size {size} and probability {prob} in {elapsed_time:.6f} seconds.")
+
+    return results
+
+
+def main_test():
+    random.seed(523920)
+    print("Starting graph generation tests...")
+    results = size_prob_test()
+
+    print("\nSummary of Results:")
+    for result in results:
+        print(
+            f"Size: {result['size']}, Probability: {result['probability']}, Time: {result['time']:.6f} sec, Nodes: {result['num_nodes']}, Edges: {result['num_edges']}")
+
+
+def main():
     random.seed(523920)
 
-    prob: float = 0.05
-    num_v = 500
-    # Generate a random graph
-    GRAPH = Solver.generate_random_graph(num_v, prob)
+    #test parameters
+    prob: float = 0.5
+    num_v: int = 50
+    number_try: int = 5
+    time_out: float = 10.0
 
-    print(f"STARTING {prob} {num_v}: {GRAPH}")
+    # printing purpose
+    progress_threshold: int = 5
+    update_interval: float = number_try * (progress_threshold / 100)  # Calculate steps per update
+
+    # output
+    num_edges = 0
+    start_time = time.time()
+
+    print(f"STARTING {prob} {num_v}")
+    for i in range(number_try):
+        GRAPH = Solver.generate_random_graph(num_v, prob)
+        Solver.fast_cut(GRAPH, time_out)
+
+        num_edges += GRAPH.num_edges
+
+        if i % update_interval == 0 or i == number_try:
+            progress = (i / number_try) * 100
+            print(f"Progress: {progress+5:.0f}%")
+
+    elapsed = time.time() - start_time
+    print(f"Total time for {num_v} {prob*100}%: {elapsed:.4f} sec - {elapsed/number_try:.4f} sec average for {number_try} times")
+    print(f"\nSummary of Results: {num_edges} edges - {num_edges/number_try} average")
+
+def main_2():
+    random.seed(523920)
+
+    prob: float = 0.1
+    num_v = 50
+    # Generate a random graph
+    start_time = time.time()
+    print(f"STARTING {prob} {num_v}")  #: {GRAPH}")
+
+    GRAPH = Solver.generate_random_graph(num_v, prob)
 
     #GRAPH.contract_random()
     #print("AFTER : " + str(GRAPH))
-
-    start_time = time.time()
 
     # Run Karger's algorithm
     karger_cut = Solver.contract(GRAPH)
@@ -217,7 +281,15 @@ if __name__ == "__main__":
     print("Time taken:", second_time, "seconds")
 
     # Run FastCut algorithm
-    fast_cut_result = Solver.fast_cut(GRAPH, second_time**3)
+    fast_cut_result = Solver.fast_cut(GRAPH, ceil(10 + 1) ** 3)
     print("FastCut Algorithm Cut:", fast_cut_result)
-    third_time = time.time()-start_time
+    third_time = time.time() - start_time
     print("Time taken:", third_time, "seconds")
+
+
+if __name__ == "__main__":
+    #main_test()
+    main()
+
+
+
