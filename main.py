@@ -241,13 +241,18 @@ class Solver:
         result: Graph = Graph(dict())
         result.add_node(num_vertices)
 
-        def dfs(node, visited):
-            """embeded function to check connectivity of the graph"""
-            visited.add(node)
-            for neighbors in result.edges.values():
-                for neighbor in neighbors:
-                    if neighbor not in visited:
-                        dfs(neighbor, visited)
+        def dfs(node: int, already_visited: set):
+            """embeded iterative function to check connectivity of the graph"""
+            stack = [node]
+
+            while stack:
+                current_node = stack.pop()
+                if current_node not in already_visited:
+                    already_visited.add(current_node)
+                    # Add all unvisited neighbors to the stack
+                    for neighbor in result.edges[current_node]:
+                        if neighbor not in already_visited:
+                            stack.append(neighbor)
 
         while True:
             for i in range(0, num_vertices):
@@ -278,44 +283,7 @@ class Solver:
         return result
 
 
-def size_prob_test():
-    sizes = [10, 50, 100]  # Different sizes of graphs
-    probabilities = [0.1, 0.3, 0.5, 0.7, 0.9]  # Different probabilities of edges
-
-    results = []
-
-    for size in sizes:
-        for prob in probabilities:
-            print(f"{size}, {prob} :")
-            start_time = time.time()
-            graph = Solver.generate_random_graph(size, prob)
-            Solver.fast_cut(graph)
-            elapsed_time = time.time() - start_time
-
-            results.append({
-                "size": size,
-                "probability": prob,
-                "time": elapsed_time,
-                "num_nodes": graph.num_nodes,
-                "num_edges": graph.num_edges
-            })
-
-            print(f"size {size} and probability {prob} in {elapsed_time:.6f} seconds.")
-
-    return results
-
-
-def main_test():
-    print("Starting graph generation tests...")
-    results = size_prob_test()
-
-    print("\nSummary of Results:")
-    for result in results:
-        print(
-            f"Size: {result['size']}, Probability: {result['probability']}, Time: {result['time']:.6f} sec, Nodes: {result['num_nodes']}, Edges: {result['num_edges']}")
-
-
-def main(density: float, num_vertices: list[int], num_iteration: int = 1, time_out: float = float('inf')) -> dict:
+def test(density: float, num_vertices: list[int], num_iteration: int = 1, time_out: float = float('inf')) -> dict:
     """
     Try to do all densities for all the num_v vertices for num_iteration times with time_out time for each iteration
     :param density: densities (probability for every edges to happen) of the graphs from 0 to 1
@@ -381,32 +349,40 @@ def main(density: float, num_vertices: list[int], num_iteration: int = 1, time_o
                        (computation_time[0] / num_iteration, computation_time[1] / num_iteration)]
     return output
 
-def basic_main():
-    """
-    easy main for 1 graph showing everything going on
-    """
 
-    prob: float = 0.05
-    num_v = 100
-    # Generate a random graph
-    start_time = time.time()
+def main_test():
+    random.seed(SEED)
+    density: float = 0.05
+    num_v: List[int] = [10 * (i + 1) for i in range(0, 10)]
+    num_try: int = 100
+    set_time_out: float = 18
 
-    GRAPH = Solver.generate_random_graph(num_v, prob)
-    print(f"STARTING {prob * 100}%, {num_v} vertices, {GRAPH.num_edges} edges")
+    result = test(density, num_v, num_try, set_time_out)
 
-    # Run Karger's algorithm
-    karger_cut = Solver.contract(GRAPH)
-    second_time = time.time() - start_time
+    error_dic: dict[int: tuple[int, int]] = dict()
+    cut_dic: dict[int: tuple[int, int]] = dict()
+    computation_time_dic: dict[int: tuple[int, int]] = dict()
 
-    print(f"Karger's Algorithm Cut: {karger_cut}")
-    print(f"Time taken: {second_time:0.4f} seconds")
+    for key, value in result.items():
+        # Unpack each tuple into separate lists
+        cut_dic[key] = value[0]
+        error_dic[key] = value[1]
+        computation_time_dic[key] = value[2]
 
-    # Run FastCut algorithm
-    fast_cut_result = Solver.fast_cut(GRAPH, 120)
-    third_time = time.time() - start_time
+    x = "Number of Nodes"
+    title = f"Contract vs FastCut Algorithms - {density * 100:0.0f}% density"
 
-    print("FastCut Algorithm Cut:", fast_cut_result)
-    print(f"Time taken: {third_time:0.4f} seconds")
+    y = "Error rate"
+    title_1 = f"{y} - " + title
+    plot_algorithm(error_dic, x, y, title_1)
+
+    y = "Minimal cut "
+    title_2 = f"{y} - " + title
+    plot_algorithm(cut_dic, x, y, title_2)
+
+    y = "Computation time (s)"
+    title_3 = f"{y} - " + title
+    plot_algorithm(computation_time_dic, x, y, title_3)
 
 
 def plot_algorithm(dic: dict[int: List[Tuple]], x_label: str, y_label: str, title_label: str):
@@ -445,52 +421,36 @@ def plot_algorithm(dic: dict[int: List[Tuple]], x_label: str, y_label: str, titl
     plt.show()
 
 
+def basic_main():
+    """
+    easy main for 1 graph showing everything going on
+    """
+
+    prob: float = 0.05
+    num_v = 200
+    time_out = 10
+    # Generate a random graph
+    start_time = time.time()
+
+    GRAPH = Solver.generate_random_graph(num_v, prob)
+    print(GRAPH)
+    print(f"STARTING {prob * 100:0.0f}%, {num_v} vertices, {GRAPH.num_edges} edges")
+
+    # Run Karger's algorithm
+    karger_cut = Solver.contract(GRAPH, time_out)
+    second_time = time.time() - start_time
+
+    print(f"Karger's Algorithm Cut: {karger_cut}")
+    print(f"Time taken: {second_time:0.3f} seconds")
+
+    # Run FastCut algorithm
+    fast_cut_result = Solver.fast_cut(GRAPH, time_out)
+    third_time = time.time() - start_time
+
+    print("FastCut Algorithm Cut:", fast_cut_result)
+    print(f"Time taken: {third_time:0.3f} seconds")
+
+
 if __name__ == "__main__":
-    random.seed(SEED)
-
-    density: float = 0.05
-    num_v: List[int] = [10 * (i+1) for i in range(0, 10)]
-    num_try: int = 100
-    set_time_out: float = 18
-
-    result = main(density, num_v, num_try, set_time_out)
-
-    error_dic: dict[int: tuple[int, int]] = dict()
-    cut_dic: dict[int: tuple[int, int]] = dict()
-    computation_time_dic: dict[int: tuple[int, int]] = dict()
-
-    for key, value in result.items():
-        # Unpack each tuple into separate lists
-        cut_dic[key] = value[0]
-        error_dic[key] = value[1]
-        computation_time_dic[key] = value[2]
-
-
-    """
-    fake_result: dict[int: tuple[int, int]] = \
-        {10: (0, 0),
-         20: (0, 0),
-         30: (0, 0),
-         40: (0, 0),
-         50: (0, 0),
-         60: (0, 0),
-         70: (0, 0),
-         80: (0, 0),
-         90: (0, 0),
-         100: (0, 0)}
-    """
-
-    x = "Number of Nodes"
-    title = f"Contract vs FastCut Algorithms - {density*100:0.0f}% density"
-
-    y = "Error rate"
-    title_1 = f"{y} - " + title
-    plot_algorithm(error_dic, x, y, title_1)
-
-    y = "Minimal cut "
-    title_2 = f"{y} - " + title
-    plot_algorithm(cut_dic, x, y, title_2)
-
-    y = "Computation time (s)"
-    title_3 = f"{y} - " + title
-    plot_algorithm(computation_time_dic, x, y, title_3)
+    #basic_main()
+    main_test()
