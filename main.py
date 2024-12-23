@@ -359,7 +359,7 @@ def main(densities: list[float], num_v: list[int], num_try: int = 1, time_out: f
                     #print(f"Progress: {progress + 5:.0f}%")
 
             elapsed = time.time() - start_time
-            print(f"\tTotal time: {elapsed:.4f} sec - {elapsed / num_try:.4f} sec average ({computation_time[0]/num_try}, {computation_time[1]/num_try})")
+            print(f"\tTotal time: {elapsed:.4f} sec - {elapsed / num_try:.4f} sec average ({computation_time[0]/num_try:.4f}, {computation_time[1]/num_try:.4f})")
             print(f"\tSummary of Results: {num_edges} edges - {num_edges / num_try} average")
             print(f"\t{error} errors ({error[0] / num_try * 100:0.2f}%, {error[1] / num_try * 100:0.2f}%)")
             print(f"\t({minimal_cut[0] // num_try}, {minimal_cut[1] // num_try}) minimal cut")
@@ -434,9 +434,9 @@ def plot_algorithm(dic: dict, x_label: str, y_label: str, title_label: str):
 if __name__ == "__main__":
     random.seed(SEED)
 
-    densities = [0.05]
+    densities = [0.4]
     num_v = [10 * (i+1) for i in range(0, 10)]
-    num_try = 100
+    num_try = 10
 
     result = main(densities, num_v, num_try, 180)
 
