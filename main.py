@@ -315,64 +315,78 @@ def main_test():
             f"Size: {result['size']}, Probability: {result['probability']}, Time: {result['time']:.6f} sec, Nodes: {result['num_nodes']}, Edges: {result['num_edges']}")
 
 
-def main(densities: list[float], num_v: list[int], num_try: int = 1, time_out: float = float('inf')) -> dict:
+def main(density: float, num_vertices: list[int], num_iteration: int = 1, time_out: float = float('inf')) -> dict:
+    """
+    Try to do all densities for all the num_v vertices for num_iteration times with time_out time for each iteration
+    :param density: densities (probability for every edges to happen) of the graphs from 0 to 1
+    :param num_vertices: List of vertices from 0 to inf
+    :param num_iteration: number of iteration
+    :param time_out: time out for each algorithm iteration
+    :return: a dictionnary with dict[number_vertices] = [(cut_contract, cut_fast),
+                                                        (error_contract, error_fast),
+                                                        (compute_time_contract, compute_time_fast)]
+    """
     # printing purpose
     progress_threshold: int = 5
-    update_interval: float = num_try * (progress_threshold / 100)  # Calculate steps per update
+    update_interval: float = num_iteration * (progress_threshold / 100)  # Calculate steps per update
 
     # output
     output: dict[int: List[tuple[int, int]]] = dict()
-    print(f"STARTING : {densities} densitites, {num_v} nodes, {num_try} iteration")
+    print(f"STARTING : {density} densitites, {num_vertices} nodes, {num_iteration} iteration")
 
-    for density in densities:
-        for n_v in num_v:
-            num_edges: int = 0
-            error: list[int] = [0, 0]
-            minimal_cut: list[int] = [0, 0]
-            computation_time: list[float] = [0, 0]
+    for n_v in num_vertices:
+        num_edges: int = 0
+        error: list[int] = [0, 0]
+        minimal_cut: list[int] = [0, 0]
+        computation_time: list[float] = [0, 0]
 
-            start_time = time.time()
+        start_time = time.time()
 
-            print(n_v, density, num_try)
+        print(n_v, density, num_iteration)
 
-            for i in range(num_try):
-                GRAPH = Solver.generate_random_graph(n_v, density)
-                try:
-                    start_try = time.time()
-                    minimal_cut[0] += Solver.contract(GRAPH, time_out/num_try)
-                    computation_time[0] += time.time()-start_try
-                except:
-                    error[0] += 1
+        for i in range(num_iteration):
+            GRAPH = Solver.generate_random_graph(n_v, density)
+            try:
+                start_try = time.time()
+                minimal_cut[0] += Solver.contract(GRAPH, time_out)
+                computation_time[0] += time.time()-start_try
+            except:
+                error[0] += 1
 
-                try:
-                    start_try = time.time()
-                    minimal_cut[1] += Solver.fast_cut(GRAPH, time_out/num_try)
-                    computation_time[1] += time.time()-start_try
+            try:
+                start_try = time.time()
+                minimal_cut[1] += Solver.fast_cut(GRAPH, time_out)
+                computation_time[1] += time.time()-start_try
 
-                except:
-                    error[1] += 1
+            except:
+                error[1] += 1
 
-                num_edges += GRAPH.num_edges
+            num_edges += GRAPH.num_edges
 
-                if i % update_interval == 0 or i == num_try and len(densities) == len(num_v) == 1:
-                    progress = (i / num_try) * 100
-                    #print(f"Progress: {progress + 5:.0f}%")
+            if i % update_interval == 0 or i == num_iteration and len(num_vertices) == 1:
+                progress = (i / num_iteration) * 100
+                #print(f"Progress: {progress + 5:.0f}%")
 
-            elapsed = time.time() - start_time
-            print(f"\tTotal time: {elapsed:.4f} sec - {elapsed / num_try:.4f} sec average ({computation_time[0]/num_try:.4f}, {computation_time[1]/num_try:.4f})")
-            print(f"\tSummary of Results: {num_edges} edges - {num_edges / num_try} average")
-            print(f"\t{error} errors ({error[0] / num_try * 100:0.2f}%, {error[1] / num_try * 100:0.2f}%)")
-            print(f"\t({minimal_cut[0] // num_try}, {minimal_cut[1] // num_try}) minimal cut")
+        elapsed = time.time() - start_time
+        print(f"\tTotal time: {elapsed:.4f} sec - {elapsed / num_iteration:.4f} sec average"
+              f" ({computation_time[0] / num_iteration:.4f}, {computation_time[1] / num_iteration:.4f})")
+        print(f"\tSummary of Results: {num_edges} edges - {num_edges / num_iteration} average")
+        print(f"\t{error} errors ({error[0] / num_iteration * 100:0.2f}%, {error[1] / num_iteration * 100:0.2f}%)")
+        print(f"\t({minimal_cut[0] // num_iteration}, {minimal_cut[1] // num_iteration}) minimal cut")
 
 
-            # minimal cut, error, computation time
-            output[n_v] = [(minimal_cut[0]//num_try, minimal_cut[1]//num_try),
-                           (error[0], error[1]),
-                           (computation_time[0] / num_try, computation_time[1] / num_try)]
+        # minimal cut, error, computation time
+        output[n_v] = [(minimal_cut[0] // num_iteration, minimal_cut[1] // num_iteration),
+                       (error[0] / num_iteration * 100, error[1] / num_iteration * 100),
+                       (computation_time[0] / num_iteration, computation_time[1] / num_iteration)]
     return output
 
 def basic_main():
-    prob: float = 0.5
+    """
+    easy main for 1 graph showing everything going on
+    """
+
+    prob: float = 0.05
     num_v = 100
     # Generate a random graph
     start_time = time.time()
@@ -395,7 +409,7 @@ def basic_main():
     print(f"Time taken: {third_time:0.4f} seconds")
 
 
-def plot_algorithm(dic: dict, x_label: str, y_label: str, title_label: str):
+def plot_algorithm(dic: dict[int: List[Tuple]], x_label: str, y_label: str, title_label: str):
     """
     Plots Contract and FastCut algorithms comparisons.
 
@@ -434,11 +448,12 @@ def plot_algorithm(dic: dict, x_label: str, y_label: str, title_label: str):
 if __name__ == "__main__":
     random.seed(SEED)
 
-    densities = [0.4]
-    num_v = [10 * (i+1) for i in range(0, 10)]
-    num_try = 10
+    density: float = 0.05
+    num_v: List[int] = [10 * (i+1) for i in range(0, 10)]
+    num_try: int = 100
+    set_time_out: float = 18
 
-    result = main(densities, num_v, num_try, 180)
+    result = main(density, num_v, num_try, set_time_out)
 
     error_dic: dict[int: tuple[int, int]] = dict()
     cut_dic: dict[int: tuple[int, int]] = dict()
@@ -451,7 +466,7 @@ if __name__ == "__main__":
         computation_time_dic[key] = value[2]
 
 
-
+    """
     fake_result: dict[int: tuple[int, int]] = \
         {10: (0, 0),
          20: (0, 0),
@@ -463,9 +478,10 @@ if __name__ == "__main__":
          80: (0, 0),
          90: (0, 0),
          100: (0, 0)}
+    """
 
     x = "Number of Nodes"
-    title = f"Contract vs FastCut Algorithms - {densities[0]*100:0.0f}% density"
+    title = f"Contract vs FastCut Algorithms - {density*100:0.0f}% density"
 
     y = "Error rate"
     title_1 = f"{y} - " + title
