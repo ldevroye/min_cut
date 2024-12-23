@@ -232,9 +232,9 @@ def main():
     random.seed(523920)
 
     #test parameters
-    prob: float = 0.5
-    num_v: int = 50
-    number_try: int = 5
+    prob: float = 0.2
+    num_v: int = 500
+    number_try: int = 1
     time_out: float = 10.0
 
     # printing purpose
@@ -245,10 +245,10 @@ def main():
     num_edges = 0
     start_time = time.time()
 
-    print(f"STARTING {prob} {num_v}")
+    print(f"STARTING : {prob*100}%, {num_v} nodes, {number_try} iteration")
     for i in range(number_try):
         GRAPH = Solver.generate_random_graph(num_v, prob)
-        Solver.fast_cut(GRAPH, time_out)
+        Solver.contract(GRAPH)
 
         num_edges += GRAPH.num_edges
 
